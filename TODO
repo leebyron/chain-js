@@ -1,0 +1,49 @@
+An input type should be "pulse" which sets the value to true for only that run.
+This would let you run something many times by having a pulsar function which
+outputs a pulse on a regular basis.
+
+---
+
+The biggest thing to make is the priority queue for what instances to resolve.
+
+It should work something like by rating every instance by the longest distance
+to the node which triggered the change.
+
+Consider the graph:
+
+A ---------> B
+|            ^
+|            |
+ -> C -> D --
+
+If A runs first, it's likely to try to run B and C next. However, since B
+potentially needs to be rerun by the output of C, it is pushed lower in the
+queue. C runs which enqueues D which again B may be dependent on and so D runs.
+Finally, B runs and at this point the graph has been resolved (queue empty).
+
+However, it's possible C doesn't output synchronously, so after its run, D is
+not yet enqueued so B is executed next. When C eventually outputs, D will run
+followed by B again.
+
+---
+
+Is it possible to use web workers to run most of the instances? If modeled not
+as a queue but as a possible dependency graph (eg, some things cannot be
+dependents but others might but not guaranteed to be) then you know when
+multiple functions can be run in parallel. The tricky piece is that a web worker
+is *always* async, so you might not be able to run the lot in a sync flow and
+would lose the ability to skip multiple executions of the same instance
+repeatedly.
+
+---
+
+Need a concept of a "value" to connect to some inputs
+
+---
+
+Reactive.create() should probably return something classlike that you can new
+rather than calling newInstance() on. This then provides a prototype chain
+situation that's beneficial. the "state" constructor could be function or obj.
+
+outputs: should also return a map so we know what *kind* of thing comes from it.
+We can also then validate the params to output() against these types.
