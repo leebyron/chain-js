@@ -29,8 +29,8 @@ describe('Reactive', function () {
     inputs: {
       value: 10
     },
-    resolve: function (input, output) {
-      output({
+    resolve: function (input) {
+      this.output({
         value: input.value * 5
       });
     }
@@ -40,24 +40,24 @@ describe('Reactive', function () {
     inputs: {
       value: Reactive.REQUIRED
     },
-    resolve: function (input, output) {
-      output({
+    resolve: function (input) {
+      this.output({
         value: input.value * 5
       });
     }
   });
 
   var Ten = Reactive.create({
-    resolve: function(input, output) {
-      output({
+    resolve: function(input) {
+      this.output({
         value: 10
       });
     }
   });
 
   var Eleven = Reactive.create({
-    resolve: function(input, output) {
-      output({
+    resolve: function(input) {
+      this.output({
         value: 11
       });
     }
@@ -68,8 +68,8 @@ describe('Reactive', function () {
       a: Reactive.REQUIRED,
       b: Reactive.REQUIRED,
     },
-    resolve: function (input, output) {
-      output({
+    resolve: function (input) {
+      this.output({
         value: input.a * input.b
       });
     }
@@ -80,8 +80,8 @@ describe('Reactive', function () {
       a: 5,
       b: 5,
     },
-    resolve: function (input, output) {
-      output({
+    resolve: function (input) {
+      this.output({
         value: input.a * input.b
       });
     }
@@ -93,7 +93,7 @@ describe('Reactive', function () {
       add: Reactive.PULSE,
       reset: Reactive.PULSE
     },
-    resolve: function(input, output) {
+    resolve: function(input) {
       this.total = this.total || 0;
       if (input.reset) {
         this.total = 0;
@@ -101,7 +101,7 @@ describe('Reactive', function () {
       if (input.add) {
         this.total += input.value;
       }
-      output({
+      this.output({
         total: this.total
       });
     }
@@ -323,15 +323,15 @@ describe('Reactive', function () {
   // Test "pulse"
   it('only executes from a pulse when set to do so', function() {
 
-    var triggerPulsar;
     var Pulsar = Reactive.create({
-      resolve: function(input, output) {
-        // TODO: maybe this should be state, not resolve?
-        triggerPulsar = function() {
-          output({
-            pulse: Reactive.PULSE
-          });
-        }
+      resolve: function(input) {
+        // TODO: remove this function
+        // only things which have inputs will ever be resolved.
+      },
+      trigger: function() {
+        this.output({
+          pulse: Reactive.PULSE
+        });
       }
     });
 
@@ -344,11 +344,11 @@ describe('Reactive', function () {
     assert.deepEqual(callHistory, []);
     assert.equal(b.outputs.total, 0);
 
-    triggerPulsar();
+    a.trigger();
     assert.equal(b.outputs.total, 1);
-    triggerPulsar();
+    a.trigger();
     assert.equal(b.outputs.total, 2);
-    triggerPulsar();
+    a.trigger();
     assert.equal(b.outputs.total, 3);
     assert.deepEqual(callHistory, [b.id, b.id, b.id]);
 
@@ -359,7 +359,7 @@ describe('Reactive', function () {
     assert.deepEqual(callHistory, [c.id, b.id]);
 
     callHistory = [];
-    triggerPulsar();
+    a.trigger();
     assert.equal(b.outputs.total, 13);
     assert.deepEqual(callHistory, [b.id]);
 
@@ -369,7 +369,7 @@ describe('Reactive', function () {
     assert.equal(b.outputs.total, 13);
     assert.deepEqual(callHistory, []);
 
-    triggerPulsar();
+    a.trigger();
     assert.equal(b.outputs.total, 0);
     assert.deepEqual(callHistory, [b.id]);
   });

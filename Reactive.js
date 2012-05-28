@@ -34,7 +34,6 @@ Reactive.create = function(bag) {
     this.outputs = {};
     this.state = {};
     this.outputLinks = {};
-    this.outputFn = output.bind(this);
     this.inputLinks = {};
     this.dependencies = {};
     this.unlinkedRequiredInputs = inputsMissing;
@@ -65,12 +64,36 @@ Reactive.create = function(bag) {
     if (this.unlinkedRequiredInputs > 0) {
       throw new Error('Crazy! This can not run because it has unlinked inputs');
     }
-    fn.call(this.state, this.inputs, this.outputFn);
+    fn.call(this, this.inputs);
     // Reset pulse values back to false
     for (var ii = 0; ii < pulseKeys.length; ++ii) {
       this.inputs[pulseKeys[ii]] = false;
     }
     this.invalid = false;
+  };
+
+  ReactiveInstance.prototype.output = function(values) {
+    for (key in values) {
+      var value = values[key];
+      var is_pulse = value === Reactive.PULSE;
+      if (is_pulse) {
+        // A pulse distributes a temporary "true" but is always represented as a
+        // false value on "outputs".
+        values[key] = false;
+        value = true;
+      }
+      var links = this.outputLinks[key];
+      if (links) {
+        for (id in links) {
+          var link = links[id];
+          if (is_pulse || link.instance.inputs[link.inputKey] !== value) {
+            link.instance.inputs[link.inputKey] = value;
+            link.instance.invalidate();
+          }
+        }
+      }
+    }
+    this.outputs = values;
   };
 
   ReactiveInstance.prototype.decrementRequiredLinks = function() {
@@ -230,29 +253,7 @@ Reactive.REQUIRED = '__REQUIRED__';
 Reactive.PULSE = '__PULSE__';
 
 
-function output(values) {
-  for (key in values) {
-    var value = values[key];
-    var is_pulse = value === Reactive.PULSE;
-    if (is_pulse) {
-      // A pulse distributes a temporary "true" but is always represented as a
-      // false value on "outputs".
-      values[key] = false;
-      value = true;
-    }
-    var links = this.outputLinks[key];
-    if (links) {
-      for (id in links) {
-        var link = links[id];
-        if (is_pulse || link.instance.inputs[link.inputKey] !== value) {
-          link.instance.inputs[link.inputKey] = value;
-          link.instance.invalidate();
-        }
-      }
-    }
-  }
-  this.outputs = values;
-};
+
 
 
 Reactive.link = function(from, output_key, to, input_key) {
