@@ -1,14 +1,6 @@
 var Reactive = require('../Reactive');
 var assert = require('assert');
 
-function obj(arr) {
-  var obj = {};
-  for (var ii = 0; ii < arr.length; ++ii) {
-    obj[arr[ii]] = true;
-  }
-  return obj;
-}
-
 describe('Reactive', function () {
 
   var callHistory;
@@ -307,11 +299,6 @@ describe('Reactive', function () {
     Reactive.link(c, 'value', d, 'b');
     Reactive.link(b, 'value', c, 'value');
     Reactive.link(a, 'value', b, 'value');
-
-    assert.deepEqual(a.dependencies, {});
-    assert.deepEqual(b.dependencies, obj([a.id]));
-    assert.deepEqual(c.dependencies, obj([a.id, b.id]));
-    assert.deepEqual(d.dependencies, obj([a.id, b.id, c.id]));
 
     assert.equal(d.getOutputValue('value'), 12500);
     assert.deepEqual(callHistory, [a.id, b.id, c.id, d.id]);
