@@ -29,9 +29,9 @@ describe('Reactive', function () {
     inputs: {
       value: 10
     },
-    resolve: function (input) {
+    resolve: function () {
       this.output({
-        value: input.value * 5
+        value: this.inputs.value * 5
       });
     }
   });
@@ -40,15 +40,15 @@ describe('Reactive', function () {
     inputs: {
       value: Reactive.REQUIRED
     },
-    resolve: function (input) {
+    resolve: function () {
       this.output({
-        value: input.value * 5
+        value: this.inputs.value * 5
       });
     }
   });
 
   var Ten = Reactive.create({
-    resolve: function(input) {
+    resolve: function() {
       this.output({
         value: 10
       });
@@ -56,7 +56,7 @@ describe('Reactive', function () {
   });
 
   var Eleven = Reactive.create({
-    resolve: function(input) {
+    resolve: function() {
       this.output({
         value: 11
       });
@@ -68,9 +68,9 @@ describe('Reactive', function () {
       a: Reactive.REQUIRED,
       b: Reactive.REQUIRED,
     },
-    resolve: function (input) {
+    resolve: function () {
       this.output({
-        value: input.a * input.b
+        value: this.inputs.a * this.inputs.b
       });
     }
   });
@@ -80,9 +80,9 @@ describe('Reactive', function () {
       a: 5,
       b: 5,
     },
-    resolve: function (input) {
+    resolve: function () {
       this.output({
-        value: input.a * input.b
+        value: this.inputs.a * this.inputs.b
       });
     }
   });
@@ -93,16 +93,28 @@ describe('Reactive', function () {
       add: Reactive.PULSE,
       reset: Reactive.PULSE
     },
-    resolve: function(input) {
-      this.total = this.total || 0;
-      if (input.reset) {
-        this.total = 0;
+    resolve: function() {
+      this.state.total = this.state.total || 0;
+      if (this.inputs.reset) {
+        this.state.total = 0;
       }
-      if (input.add) {
-        this.total += input.value;
+      if (this.inputs.add) {
+        this.state.total += this.inputs.value;
       }
       this.output({
-        total: this.total
+        total: this.state.total
+      });
+    }
+  });
+
+  var Pulsar = Reactive.create({
+    resolve: function() {
+      // TODO: remove this function
+      // only things which have inputs will ever be resolved.
+    },
+    trigger: function() {
+      this.output({
+        pulse: Reactive.PULSE
       });
     }
   });
@@ -110,14 +122,14 @@ describe('Reactive', function () {
   it('runs upon construction', function() {
     var instance = new TenTimesFive();
     assert(instance.isRunning());
-    assert.equal(instance.outputs.value, 50);
+    assert.equal(instance.getOutputValue('value'), 50);
     assert.deepEqual(callHistory, [instance.id]);
   });
 
   it('does not run upon construction when link required', function() {
     var instance = new InputTimesFive();
     assert(!instance.isRunning());
-    assert.equal(instance.outputs.value, undefined);
+    assert.equal(instance.getOutputValue('value'), undefined);
     assert.deepEqual(callHistory, []);
   });
 
@@ -126,7 +138,7 @@ describe('Reactive', function () {
     var tenInstance = new Ten();
     Reactive.link(tenInstance, 'value', instance, 'value');
     assert(instance.isRunning());
-    assert.equal(instance.outputs.value, 50);
+    assert.equal(instance.getOutputValue('value'), 50);
     assert.deepEqual(callHistory, [tenInstance.id, instance.id]);
   });
 
@@ -137,7 +149,7 @@ describe('Reactive', function () {
     assert(!instance.isRunning());
     Reactive.link(tenInstance, 'value', instance, 'b');
     assert(instance.isRunning());
-    assert.equal(instance.outputs.value, 100);
+    assert.equal(instance.getOutputValue('value'), 100);
     assert.deepEqual(callHistory, [tenInstance.id, instance.id]);
   });
 
@@ -206,21 +218,21 @@ describe('Reactive', function () {
     Reactive.link(a, 'value', c, 'a');
 
     assert.deepEqual(callHistory, [b.id, c.id]);
-    assert.equal(b.outputs.value, 50);
-    assert.equal(c.outputs.value, 50);
+    assert.equal(b.getOutputValue('value'), 50);
+    assert.equal(c.getOutputValue('value'), 50);
 
     // hook the first
     callHistory = [];
     Reactive.link(b, 'value', c, 'b');
     assert.deepEqual(callHistory, [c.id]);
-    assert.equal(c.outputs.value, 500);
+    assert.equal(c.getOutputValue('value'), 500);
 
     // hook the second
     callHistory = [];
     Reactive.link(c, 'value', b, 'b');
     assert.deepEqual(callHistory, [b.id, c.id]);
-    assert.equal(b.outputs.value, 5000);
-    assert.equal(c.outputs.value, 50000);
+    assert.equal(b.getOutputValue('value'), 5000);
+    assert.equal(c.getOutputValue('value'), 50000);
   });
 
   it('stops running when a non-running instance is linked', function() {
@@ -262,7 +274,7 @@ describe('Reactive', function () {
     Reactive.link(inputTimesFive, 'value', atimesb, 'b');
     var tenLink = Reactive.link(ten, 'value', inputTimesFive, 'value');
     assert(atimesb.isRunning());
-    assert.equal(atimesb.outputs.value, 2500);
+    assert.equal(atimesb.getOutputValue('value'), 2500);
     assert.deepEqual(callHistory, [ten.id, inputTimesFive.id, atimesb.id]);
 
     // reset call history
@@ -271,7 +283,7 @@ describe('Reactive', function () {
     var eleven = new Eleven();
     Reactive.link(eleven, 'value', inputTimesFive, 'value');
     assert(atimesb.isRunning());
-    assert.equal(atimesb.outputs.value, 3025);
+    assert.equal(atimesb.getOutputValue('value'), 3025);
     assert.deepEqual(callHistory, [eleven.id, inputTimesFive.id, atimesb.id]);
   });
 
@@ -301,7 +313,7 @@ describe('Reactive', function () {
     assert.deepEqual(c.dependencies, obj([a.id, b.id]));
     assert.deepEqual(d.dependencies, obj([a.id, b.id, c.id]));
 
-    assert.equal(d.outputs.value, 12500);
+    assert.equal(d.getOutputValue('value'), 12500);
     assert.deepEqual(callHistory, [a.id, b.id, c.id, d.id]);
   });
 
@@ -310,31 +322,18 @@ describe('Reactive', function () {
     var a = new Ten();
     var b = new InputTimesFive();
     Reactive.link(a, 'value', b, 'value');
-    assert.equal(b.outputs.value, 50);
+    assert.equal(b.getOutputValue('value'), 50);
     assert.deepEqual(callHistory, [a.id, b.id]);
 
     callHistory = [];
     var c = new Ten();
     Reactive.link(c, 'value', b, 'value');
-    assert.equal(b.outputs.value, 50);
+    assert.equal(b.getOutputValue('value'), 50);
     assert.deepEqual(callHistory, [c.id]);
   });
 
   // Test "pulse"
   it('only executes from a pulse when set to do so', function() {
-
-    var Pulsar = Reactive.create({
-      resolve: function(input) {
-        // TODO: remove this function
-        // only things which have inputs will ever be resolved.
-      },
-      trigger: function() {
-        this.output({
-          pulse: Reactive.PULSE
-        });
-      }
-    });
-
     var a = new Pulsar();
     var b = new PulseAdder();
     assert.deepEqual(callHistory, [a.id, b.id]);
@@ -342,35 +341,35 @@ describe('Reactive', function () {
     callHistory = [];
     Reactive.link(a, 'pulse', b, 'add');
     assert.deepEqual(callHistory, []);
-    assert.equal(b.outputs.total, 0);
+    assert.equal(b.getOutputValue('total'), 0);
 
     a.trigger();
-    assert.equal(b.outputs.total, 1);
+    assert.equal(b.getOutputValue('total'), 1);
     a.trigger();
-    assert.equal(b.outputs.total, 2);
+    assert.equal(b.getOutputValue('total'), 2);
     a.trigger();
-    assert.equal(b.outputs.total, 3);
+    assert.equal(b.getOutputValue('total'), 3);
     assert.deepEqual(callHistory, [b.id, b.id, b.id]);
 
     callHistory = [];
     var c = new Ten();
     Reactive.link(c, 'value', b, 'value');
-    assert.equal(b.outputs.total, 3);
+    assert.equal(b.getOutputValue('total'), 3);
     assert.deepEqual(callHistory, [c.id, b.id]);
 
     callHistory = [];
     a.trigger();
-    assert.equal(b.outputs.total, 13);
+    assert.equal(b.getOutputValue('total'), 13);
     assert.deepEqual(callHistory, [b.id]);
 
     callHistory = [];
     b.unlink('add');
     Reactive.link(a, 'pulse', b, 'reset');
-    assert.equal(b.outputs.total, 13);
+    assert.equal(b.getOutputValue('total'), 13);
     assert.deepEqual(callHistory, []);
 
     a.trigger();
-    assert.equal(b.outputs.total, 0);
+    assert.equal(b.getOutputValue('total'), 0);
     assert.deepEqual(callHistory, [b.id]);
   });
 

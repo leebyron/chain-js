@@ -1,7 +1,9 @@
-//var copyProperties = require('copyProperties')
+'use strict';
 
-
-var Reactive = {};
+var Reactive = {
+  REQUIRED: '__REQUIRED__',
+  PULSE: '__PULSE__'
+};
 
 Reactive.create = function(bag) {
   var fn = bag.resolve;
@@ -9,7 +11,7 @@ Reactive.create = function(bag) {
   var inputDefaults = {};
 
   var pulseKeys = [];
-  var inputsMissing = 0;
+  var numRequiredInputs = 0;
 
   for (var key in inputDefinition) {
     var value = inputDefinition[key];
@@ -18,31 +20,55 @@ Reactive.create = function(bag) {
       pulseKeys.push(key);
     } else if (value === Reactive.REQUIRED) {
       inputDefaults[key] = undefined;
-      inputsMissing++;
+      numRequiredInputs++;
     } else {
       inputDefaults[key] = value;
     }
   }
 
   function ReactiveInstance() {
-    this.id = totalInstances++;
-    this.invalid = false;
-
     // TODO: better object copy
     this.inputs = JSON.parse(JSON.stringify(inputDefaults));
-
-    this.outputs = {};
     this.state = {};
+
+    // protected
+    this.id = totalInstances++;
+    this.invalid = false;
+    this.outputValues = {};
     this.outputLinks = {};
     this.inputLinks = {};
     this.dependencies = {};
-    this.unlinkedRequiredInputs = inputsMissing;
+    this.unlinkedRequiredInputs = numRequiredInputs;
 
-    if (this.isRunning()) {
-      this.invalidate();
-    }
+    Object.seal && Object.seal(this);
+
+    this._invalidate();
   }
 
+  ReactiveInstance.prototype.output = function(values) {
+    for (var key in values) {
+      var value = values[key];
+      var is_pulse = value === Reactive.PULSE;
+      if (is_pulse) {
+        // A pulse distributes a temporary "true" but is always represented as a
+        // false value on "outputs".
+        this.outputValues[key] = false;
+        value = true;
+      } else {
+        this.outputValues[key] = value;
+      }
+      var links = this.outputLinks[key];
+      if (links) {
+        for (var id in links) {
+          var link = links[id];
+          if (is_pulse || link.instance.inputs[link.inputKey] !== value) {
+            link.instance.inputs[link.inputKey] = value;
+            link.instance._invalidate();
+          }
+        }
+      }
+    }
+  };
 
   ReactiveInstance.prototype.isRunning = function() {
     return this.unlinkedRequiredInputs === 0;
@@ -52,8 +78,22 @@ Reactive.create = function(bag) {
     return inputDefinition[input_key] === Reactive.REQUIRED;
   };
 
-  ReactiveInstance.prototype.invalidate = function() {
-    if (this.invalid) {
+  ReactiveInstance.prototype.getOutputValue = function(output_key) {
+    return this.outputValues[output_key];
+  };
+
+  ReactiveInstance.prototype.unlink = function(input_key) {
+    this._unlinkOnly(input_key);
+    var value_change = this.inputs[input_key] !== inputDefaults[input_key];
+    if (value_change) {
+      this.inputs[input_key] = inputDefaults[input_key];
+      this._invalidate();
+    }
+  };
+
+  // Protected
+  ReactiveInstance.prototype._invalidate = function() {
+    if (!this.isRunning() || this.invalid) {
       return;
     }
     this.invalid = true;
@@ -64,7 +104,7 @@ Reactive.create = function(bag) {
     if (this.unlinkedRequiredInputs > 0) {
       throw new Error('Crazy! This can not run because it has unlinked inputs');
     }
-    fn.call(this, this.inputs);
+    fn.call(this);
     // Reset pulse values back to false
     for (var ii = 0; ii < pulseKeys.length; ++ii) {
       this.inputs[pulseKeys[ii]] = false;
@@ -72,31 +112,7 @@ Reactive.create = function(bag) {
     this.invalid = false;
   };
 
-  ReactiveInstance.prototype.output = function(values) {
-    for (key in values) {
-      var value = values[key];
-      var is_pulse = value === Reactive.PULSE;
-      if (is_pulse) {
-        // A pulse distributes a temporary "true" but is always represented as a
-        // false value on "outputs".
-        values[key] = false;
-        value = true;
-      }
-      var links = this.outputLinks[key];
-      if (links) {
-        for (id in links) {
-          var link = links[id];
-          if (is_pulse || link.instance.inputs[link.inputKey] !== value) {
-            link.instance.inputs[link.inputKey] = value;
-            link.instance.invalidate();
-          }
-        }
-      }
-    }
-    this.outputs = values;
-  };
-
-  ReactiveInstance.prototype.decrementRequiredLinks = function() {
+  ReactiveInstance.prototype._decrementRequiredLinks = function() {
     if (this.unlinkedRequiredInputs === 0) {
       throw new Error('CHAOS! tried to decrement links already at 0.');
     }
@@ -108,13 +124,13 @@ Reactive.create = function(bag) {
       for (output_key in this.outputLinks) {
         links = this.outputLinks[output_key];
         for (link_key in links) {
-          links[link_key].instance.decrementRequiredLinks();
+          links[link_key].instance._decrementRequiredLinks();
         }
       }
     }
   };
 
-  ReactiveInstance.prototype.incrementRequiredLinks = function() {
+  ReactiveInstance.prototype._incrementRequiredLinks = function() {
     var output_key;
     var links;
     var link_key;
@@ -124,19 +140,8 @@ Reactive.create = function(bag) {
       for (output_key in this.outputLinks) {
         links = this.outputLinks[output_key];
         for (link_key in links) {
-          links[link_key].instance.incrementRequiredLinks();
+          links[link_key].instance._incrementRequiredLinks();
         }
-      }
-    }
-  };
-
-  ReactiveInstance.prototype.unlink = function(input_key) {
-    this._unlinkOnly(input_key);
-    var value_change = this.inputs[input_key] !== inputDefaults[input_key];
-    if (value_change) {
-      this.inputs[input_key] = inputDefaults[input_key];
-      if (this.isRunning()) {
-        this.invalidate();
       }
     }
   };
@@ -154,17 +159,17 @@ Reactive.create = function(bag) {
     delete from.outputLinks[output_key][this.id + input_key];
 
     if (from.isRunning() && inputDefinition[input_key] === Reactive.REQUIRED) {
-      this.incrementRequiredLinks();
+      this._incrementRequiredLinks();
     } else if (!from.isRunning() &&
                inputDefinition[input_key] !== Reactive.REQUIRED) {
-      this.decrementRequiredLinks();
+      this._decrementRequiredLinks();
     }
 
     // After the unlink, figure out what this is actually dependent on.
     this._calculateDependencies();
   }
 
-  ReactiveInstance.prototype.dependsOn = function(instance) {
+  ReactiveInstance.prototype._dependsOn = function(instance) {
     return !!this.dependencies[instance.id];
   }
 
@@ -200,14 +205,12 @@ Reactive.create = function(bag) {
 
 
 
-
-
 var totalInstances = 0;
-
 var isRunning = false;
 // TODO: use a linked list to manage this queue for perf reasons
 var runQueue = [];
 var runHistory;
+
 function enqueueRun(instance) {
   // don't enqueue the same instance twice in one pass, protects from infinite
   // recursion
@@ -220,7 +223,7 @@ function enqueueRun(instance) {
     var inserted = false;
     if (runQueue.length) {
       for (var ii = 0; ii < runQueue.length; ++ii) {
-        if (runQueue[ii].dependsOn(instance)) {
+        if (runQueue[ii]._dependsOn(instance)) {
           runQueue.splice(ii,0,instance);
           inserted = true;
           break;
@@ -248,12 +251,6 @@ function enqueueRun(instance) {
   }
 }
 
-// default input values
-Reactive.REQUIRED = '__REQUIRED__';
-Reactive.PULSE = '__PULSE__';
-
-
-
 
 
 Reactive.link = function(from, output_key, to, input_key) {
@@ -278,9 +275,9 @@ Reactive.link = function(from, output_key, to, input_key) {
   };
 
   if (from.isRunning() && to.isRequiredInput(input_key)) {
-    to.decrementRequiredLinks();
+    to._decrementRequiredLinks();
   } else if (!from.isRunning() && !to.isRequiredInput(input_key)) {
-    to.incrementRequiredLinks();
+    to._incrementRequiredLinks();
   }
 
   // Ensure everything downstream now has this as a dependency
@@ -309,13 +306,11 @@ Reactive.link = function(from, output_key, to, input_key) {
     }
   }
 
-  if (from.outputs[output_key] !== undefined) {
-    var value_change = to.inputs[input_key] !== from.outputs[output_key];
+  if (from.outputValues[output_key] !== undefined) {
+    var value_change = to.inputs[input_key] !== from.outputValues[output_key];
     if (value_change) {
-      to.inputs[input_key] = from.outputs[output_key];
-      if (to.isRunning()) {
-        to.invalidate();
-      }
+      to.inputs[input_key] = from.outputValues[output_key];
+      to._invalidate();
     }
   }
 };
