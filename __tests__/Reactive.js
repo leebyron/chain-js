@@ -25,7 +25,7 @@ describe('Reactive', function () {
     callHistory = [];
   });
 
-  var TenTimesFive = new Reactive({
+  var TenTimesFive = Reactive.create({
     inputs: {
       value: 10
     },
@@ -36,7 +36,7 @@ describe('Reactive', function () {
     }
   });
 
-  var InputTimesFive = new Reactive({
+  var InputTimesFive = Reactive.create({
     inputs: {
       value: Reactive.REQUIRED
     },
@@ -47,7 +47,7 @@ describe('Reactive', function () {
     }
   });
 
-  var Ten = new Reactive({
+  var Ten = Reactive.create({
     resolve: function(input, output) {
       output({
         value: 10
@@ -55,7 +55,7 @@ describe('Reactive', function () {
     }
   });
 
-  var Eleven = new Reactive({
+  var Eleven = Reactive.create({
     resolve: function(input, output) {
       output({
         value: 11
@@ -63,7 +63,7 @@ describe('Reactive', function () {
     }
   });
 
-  var ATimesB = new Reactive({
+  var ATimesB = Reactive.create({
     inputs: {
       a: Reactive.REQUIRED,
       b: Reactive.REQUIRED,
@@ -75,7 +75,7 @@ describe('Reactive', function () {
     }
   });
 
-  var ATimesBAuto = new Reactive({
+  var ATimesBAuto = Reactive.create({
     inputs: {
       a: 5,
       b: 5,
@@ -87,7 +87,7 @@ describe('Reactive', function () {
     }
   });
 
-  var PulseAdder = new Reactive({
+  var PulseAdder = Reactive.create({
     inputs: {
       value: 1,
       add: Reactive.PULSE,
@@ -108,22 +108,22 @@ describe('Reactive', function () {
   });
 
   it('runs upon construction', function() {
-    var instance = TenTimesFive.newInstance();
+    var instance = new TenTimesFive();
     assert(instance.isRunning());
     assert.equal(instance.outputs.value, 50);
     assert.deepEqual(callHistory, [instance.id]);
   });
 
   it('does not run upon construction when link required', function() {
-    var instance = InputTimesFive.newInstance();
+    var instance = new InputTimesFive();
     assert(!instance.isRunning());
     assert.equal(instance.outputs.value, undefined);
     assert.deepEqual(callHistory, []);
   });
 
   it('runs when linked', function() {
-    var instance = InputTimesFive.newInstance();
-    var tenInstance = Ten.newInstance();
+    var instance = new InputTimesFive();
+    var tenInstance = new Ten();
     Reactive.link(tenInstance, 'value', instance, 'value');
     assert(instance.isRunning());
     assert.equal(instance.outputs.value, 50);
@@ -131,8 +131,8 @@ describe('Reactive', function () {
   });
 
   it('allows one to many links', function() {
-    var instance = ATimesB.newInstance();
-    var tenInstance = Ten.newInstance();
+    var instance = new ATimesB();
+    var tenInstance = new Ten();
     Reactive.link(tenInstance, 'value', instance, 'a');
     assert(!instance.isRunning());
     Reactive.link(tenInstance, 'value', instance, 'b');
@@ -157,10 +157,10 @@ describe('Reactive', function () {
    *              +---+
    */
   it('will not run instances with required inputs in a cycle', function() {
-    var a = Ten.newInstance();
-    var b = ATimesB.newInstance();
-    var c = ATimesB.newInstance();
-    var d = Ten.newInstance();
+    var a = new Ten();
+    var b = new ATimesB();
+    var c = new ATimesB();
+    var d = new Ten();
     Reactive.link(a, 'value', b, 'a');
     Reactive.link(a, 'value', c, 'a');
     Reactive.link(d, 'value', b, 'b');
@@ -197,9 +197,9 @@ describe('Reactive', function () {
    *              +---+
    */
   it('will not infinite loop in a cycle', function() {
-    var a = Ten.newInstance();
-    var b = ATimesBAuto.newInstance();
-    var c = ATimesBAuto.newInstance();
+    var a = new Ten();
+    var b = new ATimesBAuto();
+    var c = new ATimesBAuto();
 
     callHistory = [];
     Reactive.link(a, 'value', b, 'a');
@@ -224,8 +224,8 @@ describe('Reactive', function () {
   });
 
   it('stops running when a non-running instance is linked', function() {
-    var instance1 = TenTimesFive.newInstance();
-    var instance2 = InputTimesFive.newInstance();
+    var instance1 = new TenTimesFive();
+    var instance2 = new InputTimesFive();
 
     assert(instance1.isRunning());
     assert(!instance2.isRunning());
@@ -236,8 +236,8 @@ describe('Reactive', function () {
   });
 
   it('begins running after a non-running instance is unlinked', function() {
-    var instance1 = TenTimesFive.newInstance();
-    var instance2 = InputTimesFive.newInstance();
+    var instance1 = new TenTimesFive();
+    var instance2 = new InputTimesFive();
 
     assert(instance1.isRunning());
     assert(!instance2.isRunning());
@@ -254,9 +254,9 @@ describe('Reactive', function () {
   });
 
   it('does not re-run an instance with multiple inputs due to one change', function() {
-    var atimesb = ATimesB.newInstance();
-    var inputTimesFive = InputTimesFive.newInstance();
-    var ten = Ten.newInstance();
+    var atimesb = new ATimesB();
+    var inputTimesFive = new InputTimesFive();
+    var ten = new Ten();
 
     Reactive.link(inputTimesFive, 'value', atimesb, 'a');
     Reactive.link(inputTimesFive, 'value', atimesb, 'b');
@@ -268,7 +268,7 @@ describe('Reactive', function () {
     // reset call history
     callHistory = [];
 
-    var eleven = Eleven.newInstance();
+    var eleven = new Eleven();
     Reactive.link(eleven, 'value', inputTimesFive, 'value');
     assert(atimesb.isRunning());
     assert.equal(atimesb.outputs.value, 3025);
@@ -286,10 +286,10 @@ describe('Reactive', function () {
    *               +---+
    */
   it('has proper execution order for non-tree graphs', function() {
-    var a = Ten.newInstance();
-    var b = InputTimesFive.newInstance();
-    var c = InputTimesFive.newInstance();
-    var d = ATimesB.newInstance();
+    var a = new Ten();
+    var b = new InputTimesFive();
+    var c = new InputTimesFive();
+    var d = new ATimesB();
 
     Reactive.link(b, 'value', d, 'a');
     Reactive.link(c, 'value', d, 'b');
@@ -307,14 +307,14 @@ describe('Reactive', function () {
 
   // TODO: only runs dependents who's values have changed
   it('only runs an instance when inputs have changed', function() {
-    var a = Ten.newInstance();
-    var b = InputTimesFive.newInstance();
+    var a = new Ten();
+    var b = new InputTimesFive();
     Reactive.link(a, 'value', b, 'value');
     assert.equal(b.outputs.value, 50);
     assert.deepEqual(callHistory, [a.id, b.id]);
 
     callHistory = [];
-    var c = Ten.newInstance();
+    var c = new Ten();
     Reactive.link(c, 'value', b, 'value');
     assert.equal(b.outputs.value, 50);
     assert.deepEqual(callHistory, [c.id]);
@@ -324,7 +324,7 @@ describe('Reactive', function () {
   it('only executes from a pulse when set to do so', function() {
 
     var triggerPulsar;
-    var Pulsar = new Reactive({
+    var Pulsar = Reactive.create({
       resolve: function(input, output) {
         // TODO: maybe this should be state, not resolve?
         triggerPulsar = function() {
@@ -335,8 +335,8 @@ describe('Reactive', function () {
       }
     });
 
-    var a = Pulsar.newInstance();
-    var b = PulseAdder.newInstance();
+    var a = new Pulsar();
+    var b = new PulseAdder();
     assert.deepEqual(callHistory, [a.id, b.id]);
 
     callHistory = [];
@@ -353,7 +353,7 @@ describe('Reactive', function () {
     assert.deepEqual(callHistory, [b.id, b.id, b.id]);
 
     callHistory = [];
-    var c = Ten.newInstance();
+    var c = new Ten();
     Reactive.link(c, 'value', b, 'value');
     assert.equal(b.outputs.total, 3);
     assert.deepEqual(callHistory, [c.id, b.id]);
