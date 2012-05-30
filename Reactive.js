@@ -105,12 +105,14 @@ Reactive.create = function(bag) {
     var value_changed = false;
     for (var key in value_map) {
       var value = value_map[key];
-      if (value !== undefined &&
-          this.inputs === undefined &&
-          this.isRequiredInput(key)) {
-        this._decrementRequiredLinks();
-      }
       if (this.inputs[key] !== value) {
+        if (this.isRequiredInput(key)) {
+          if (this.inputs[key] === undefined) {
+            this._decrementRequiredLinks();
+          } else if (value === undefined) {
+            this._incrementRequiredLinks();
+          }
+        }
         value_changed = true;
         this.inputs[key] = value;
       }
@@ -121,8 +123,6 @@ Reactive.create = function(bag) {
     return this;
   };
 
-  // TODO: BUG! If you setInputValue on a required field and then unlink here,
-  // it gets set to undefined but isn't required again!
   ReactiveInstance.prototype.unlink = function(input_key) {
     this._unlinkOnly(input_key);
     if (this.inputs[input_key] !== inputDefaults[input_key]) {
@@ -206,6 +206,14 @@ Reactive.create = function(bag) {
 
       // After the unlink, figure out what this is actually dependent on.
       this._calculateDependencies();
+
+    // If there was no actual input link, but there is a manually set value,
+    // and this is a required key, the contract is that this input will be set
+    // to it's default undefined value, which means we need to increment the
+    // number of required links.
+    } else if (this.inputs[input_key] !== undefined &&
+               this.isRequiredInput(input_key)) {
+      this._incrementRequiredLinks();
     }
   }
 
@@ -299,9 +307,10 @@ Reactive.link = function(from, output_key, to, input_key) {
     throw new Error('Cannot link to self.');
   }
 
-  if (to._inputLinks[input_key]) {
-    to._unlinkOnly(input_key);
-  }
+  // Ensure we're about to link to an open slot by unlinking whatever was just
+  // there. Alternatively we could throw if the value was set, but this is both
+  // safer (easier to track dependencies) and more convenient.
+  to._unlinkOnly(input_key);
 
   if (!from._outputLinks[output_key]) {
     from._outputLinks[output_key] = {};
