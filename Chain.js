@@ -43,6 +43,9 @@ Chain.create = function(bag) {
     }
     Object.seal && Object.seal(this.state);
 
+    // for debugging use only.
+    this.beforeRun = null;
+
     // protected
     this._isValid = true;
     this._outputValues = {};
@@ -67,7 +70,7 @@ Chain.create = function(bag) {
       var value = values[key];
       // TODO: should have an output definition which makes pulse easier
       // to handle.
-      var is_pulse = value === Chain.PULSE;
+      var is_pulse = value && outputDefinition[key] === Chain.PULSE;
       if (is_pulse) {
         // A pulse distributes a temporary "true" but is always represented as a
         // false value on "outputs".
@@ -87,6 +90,14 @@ Chain.create = function(bag) {
         }
       }
     }
+  };
+
+  ChainInstance.prototype.definesInput = function(key) {
+    return inputDefinition[key] !== undefined;
+  };
+
+  ChainInstance.prototype.definesOutput = function(key) {
+    return outputDefinition[key] !== undefined;
   };
 
   ChainInstance.prototype.isRunning = function() {
@@ -114,7 +125,10 @@ Chain.create = function(bag) {
           }
         }
         value_changed = true;
-        this.inputs[key] = value;
+        // A pulse distributes a temporary "true" which will be returned to
+        // "false" after execution.
+        var is_pulse = value && outputDefinition[key] === Chain.PULSE;
+        this.inputs[key] = is_pulse ? true : value;
       }
     }
     if (value_changed) {
@@ -145,6 +159,7 @@ Chain.create = function(bag) {
       throw new Error('Crazy! This can not run because it has unlinked inputs');
     }
 
+    this.beforeRun && this.beforeRun(this);
     var output = fn.call(this);
     output && this.output(output);
 
@@ -305,6 +320,12 @@ function enqueueRun(instance) {
 Chain.link = function(from, output_key, to, input_key) {
   if (from === to) {
     throw new Error('Cannot link to self.');
+  }
+  if (!from.definesOutput(output_key)) {
+    throw new Error('Unknown output ' + output_key);
+  }
+  if (!to.definesInput(input_key)) {
+    throw new Error('Unknown input ' + input_key);
   }
 
   // Ensure we're about to link to an open slot by unlinking whatever was just

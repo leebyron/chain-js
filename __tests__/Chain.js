@@ -105,6 +105,22 @@ describe('Chain', function () {
     }
   });
 
+  var DeferPulse = Chain.create({
+    inputs: {
+      pulse: Chain.PULSE
+    },
+    outputs: {
+      pulse: Chain.PULSE
+    },
+    resolve: function() {
+      if (this.inputs.pulse) {
+        process.nextTick(function() {
+          this.output({pulse: Chain.PULSE});
+        }.bind(this));
+      }
+    }
+  });
+
   it('runs upon construction', function() {
     var instance = new TenTimesFive();
     assert(instance.isRunning());
@@ -368,6 +384,39 @@ describe('Chain', function () {
     assert.deepEqual(callHistory, [b.id]);
   });
 
-  // TODO: Test infinite loop graph cycle. A calls B on nextFrame which then calls A on nextFrame.
+  /**
+   * Test infinite loop graph cycle.
+   * one calls two on nextFrame which then calls one on nextFrame.
+   *
+   *      +---+
+   *  +-->| A |-+
+   *  |   +---+ |
+   *  | +-------+
+   *  | | +---+
+   *  | +>| B |-+
+   *  |   +---+ |
+   *  +---------+
+   */
+  it('can loop forever in a cycle', function(done) {
+    var a = new DeferPulse();
+    var b = new DeferPulse();
+
+    Chain.link(a, 'pulse', b, 'pulse');
+    Chain.link(b, 'pulse', a, 'pulse');
+
+    var runs = 0;
+    b.beforeRun = function() {
+      if (++runs === 3) {
+        // stop recursion
+        b.unlink('pulse');
+        assert.deepEqual(callHistory, [a.id, b.id, a.id, b.id, a.id, b.id]);
+        done();
+      }
+    };
+
+    callHistory = [];
+    a.setInputValues({pulse: true});
+    assert.deepEqual(callHistory, [a.id]);
+  });
 
 });
