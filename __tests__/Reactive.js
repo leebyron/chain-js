@@ -22,9 +22,9 @@ describe('Reactive', function () {
       value: 10
     },
     resolve: function () {
-      this.output({
+      return {
         value: this.inputs.value * 5
-      });
+      };
     }
   });
 
@@ -33,25 +33,25 @@ describe('Reactive', function () {
       value: Reactive.REQUIRED
     },
     resolve: function () {
-      this.output({
+      return {
         value: this.inputs.value * 5
-      });
+      };
     }
   });
 
   var Ten = Reactive.create({
     resolve: function() {
-      this.output({
+      return {
         value: 10
-      });
+      };
     }
   });
 
   var Eleven = Reactive.create({
     resolve: function() {
-      this.output({
+      return {
         value: 11
-      });
+      };
     }
   });
 
@@ -61,9 +61,9 @@ describe('Reactive', function () {
       b: Reactive.REQUIRED,
     },
     resolve: function () {
-      this.output({
+      return {
         value: this.inputs.a * this.inputs.b
-      });
+      };
     }
   });
 
@@ -73,9 +73,9 @@ describe('Reactive', function () {
       b: 5,
     },
     resolve: function () {
-      this.output({
+      return {
         value: this.inputs.a * this.inputs.b
-      });
+      };
     }
   });
 
@@ -85,17 +85,19 @@ describe('Reactive', function () {
       add: Reactive.PULSE,
       reset: Reactive.PULSE
     },
+    state: {
+      total: 0
+    },
     resolve: function() {
-      this.state.total = this.state.total || 0;
       if (this.inputs.reset) {
         this.state.total = 0;
       }
       if (this.inputs.add) {
         this.state.total += this.inputs.value;
       }
-      this.output({
-        total: this.state.total
-      });
+      // We can return state directly since it's identical to our
+      // output definition.
+      return this.state;
     }
   });
 

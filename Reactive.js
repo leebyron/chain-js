@@ -9,6 +9,8 @@ Reactive.create = function(bag) {
   var fn = bag.resolve;
   var inputDefinition = bag.inputs || {};
   var inputDefaults = {};
+  var stateDefaults = bag.state || {};
+  var stateIsFn = bag.state instanceof Function;
 
   var pulseKeys = [];
   var numRequiredInputs = 0;
@@ -30,7 +32,11 @@ Reactive.create = function(bag) {
     this.id = totalInstances++;
     // TODO: better object copy
     this.inputs = JSON.parse(JSON.stringify(inputDefaults));
-    this.state = {};
+    if (stateIsFn) {
+      this.state = stateDefaults.apply(this, arguments);
+    } else {
+      this.state = JSON.parse(JSON.stringify(stateDefaults));
+    }
 
     // protected
     this._isValid = true;
@@ -84,10 +90,31 @@ Reactive.create = function(bag) {
     return this._outputValues[output_key];
   };
 
+  ReactiveInstance.prototype.setInputValues = function(value_map) {
+    var value_changed = false;
+    for (var key in value_map) {
+      var value = value_map[key];
+      if (value !== undefined &&
+          this.inputs === undefined &&
+          this.isRequiredInput(key)) {
+        this._decrementRequiredLinks();
+      }
+      if (this.inputs[key] !== value) {
+        value_changed = true;
+        this.inputs[key] = value;
+      }
+    }
+    if (value_changed) {
+      this._invalidate();
+    }
+    return this;
+  };
+
+  // TODO: BUG! If you setInputValue on a required field and then unlink here,
+  // it gets set to undefined but isn't required again!
   ReactiveInstance.prototype.unlink = function(input_key) {
     this._unlinkOnly(input_key);
-    var value_change = this.inputs[input_key] !== inputDefaults[input_key];
-    if (value_change) {
+    if (this.inputs[input_key] !== inputDefaults[input_key]) {
       this.inputs[input_key] = inputDefaults[input_key];
       this._invalidate();
     }
@@ -106,7 +133,10 @@ Reactive.create = function(bag) {
     if (this._numUnlinkedRequiredInputs > 0) {
       throw new Error('Crazy! This can not run because it has unlinked inputs');
     }
-    fn.call(this);
+
+    var output = fn.call(this);
+    output && this.output(output);
+
     // Reset pulse values back to false
     for (var ii = 0; ii < pulseKeys.length; ++ii) {
       this.inputs[pulseKeys[ii]] = false;
@@ -150,24 +180,22 @@ Reactive.create = function(bag) {
 
   ReactiveInstance.prototype._unlinkOnly = function(input_key) {
     var link_info = this._inputLinks[input_key];
-    if (!link_info) {
-      throw new Error('Nothing linked to ' + input_key);
+    if (link_info) {
+      var from = link_info.instance;
+      var output_key = link_info.outputKey;
+
+      delete this._inputLinks[input_key];
+      delete from._outputLinks[output_key][this.id + input_key];
+
+      if (from.isRunning() && this.isRequiredInput(input_key)) {
+        this._incrementRequiredLinks();
+      } else if (!from.isRunning() && !this.isRequiredInput(input_key)) {
+        this._decrementRequiredLinks();
+      }
+
+      // After the unlink, figure out what this is actually dependent on.
+      this._calculateDependencies();
     }
-
-    var from = link_info.instance;
-    var output_key = link_info.outputKey;
-
-    delete this._inputLinks[input_key];
-    delete from._outputLinks[output_key][this.id + input_key];
-
-    if (from.isRunning() && this.isRequiredInput(input_key)) {
-      this._incrementRequiredLinks();
-    } else if (!from.isRunning() && !this.isRequiredInput(input_key)) {
-      this._decrementRequiredLinks();
-    }
-
-    // After the unlink, figure out what this is actually dependent on.
-    this._calculateDependencies();
   }
 
   ReactiveInstance.prototype._dependsOn = function(instance) {
@@ -309,8 +337,7 @@ Reactive.link = function(from, output_key, to, input_key) {
   }
 
   if (from._outputValues[output_key] !== undefined) {
-    var value_change = to.inputs[input_key] !== from._outputValues[output_key];
-    if (value_change) {
+    if (to.inputs[input_key] !== from._outputValues[output_key]) {
       to.inputs[input_key] = from._outputValues[output_key];
       to._invalidate();
     }
