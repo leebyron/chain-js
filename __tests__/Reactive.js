@@ -22,9 +22,7 @@ describe('Reactive', function () {
       value: 10
     },
     resolve: function () {
-      return {
-        value: this.inputs.value * 5
-      };
+      return this.inputs.value * 5;
     }
   });
 
@@ -33,49 +31,39 @@ describe('Reactive', function () {
       value: Reactive.REQUIRED
     },
     resolve: function () {
-      return {
-        value: this.inputs.value * 5
-      };
+      return this.inputs.value * 5;
     }
   });
 
   var Ten = Reactive.create({
     resolve: function() {
-      return {
-        value: 10
-      };
+      return 10;
     }
   });
 
   var Eleven = Reactive.create({
     resolve: function() {
-      return {
-        value: 11
-      };
+      return 11;
     }
   });
 
   var ATimesB = Reactive.create({
     inputs: {
       a: Reactive.REQUIRED,
-      b: Reactive.REQUIRED,
+      b: Reactive.REQUIRED
     },
     resolve: function () {
-      return {
-        value: this.inputs.a * this.inputs.b
-      };
+      return this.inputs.a * this.inputs.b;
     }
   });
 
   var ATimesBAuto = Reactive.create({
     inputs: {
       a: 5,
-      b: 5,
+      b: 5
     },
     resolve: function () {
-      return {
-        value: this.inputs.a * this.inputs.b
-      };
+      return this.inputs.a * this.inputs.b;
     }
   });
 
@@ -88,6 +76,9 @@ describe('Reactive', function () {
     state: {
       total: 0
     },
+    outputs: {
+      total: 0
+    },
     resolve: function() {
       if (this.inputs.reset) {
         this.state.total = 0;
@@ -97,11 +88,16 @@ describe('Reactive', function () {
       }
       // We can return state directly since it's identical to our
       // output definition.
-      return this.state;
+      return {
+        total: this.state.total
+      };
     }
   });
 
   var Pulsar = Reactive.create({
+    outputs: {
+      pulse: Reactive.PULSE
+    },
     resolve: function() {
       // TODO: remove this function
       // only things which have inputs will ever be resolved.

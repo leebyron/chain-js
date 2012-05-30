@@ -12,6 +12,10 @@ Reactive.create = function(bag) {
   var stateDefaults = bag.state || {};
   var stateIsFn = bag.state instanceof Function;
 
+  var outputDefinition = bag.outputs || {value: 1};
+  // TODO: actually check for a scalar? We need a way to type the single output
+  var isOutputValueOnly = bag.outputs === undefined;
+
   var pulseKeys = [];
   var numRequiredInputs = 0;
 
@@ -53,7 +57,13 @@ Reactive.create = function(bag) {
   }
 
   ReactiveInstance.prototype.output = function(values) {
+    if (isOutputValueOnly) {
+      values = {value:values};
+    }
     for (var key in values) {
+      if (outputDefinition[key] === undefined) {
+        throw new Error('Unknown output ' + key);
+      }
       var value = values[key];
       // TODO: should have an output definition which makes pulse easier
       // to handle.
