@@ -1,10 +1,10 @@
-var Reactive = require('../Reactive');
+var Chain = require('../Chain');
 var assert = require('assert');
 
-describe('Reactive', function () {
+describe('Chain', function () {
 
   var callHistory;
-  Reactive.beforeRun = function(instance) {
+  Chain.beforeRun = function(instance) {
     callHistory.push(instance.id);
     if (callHistory.length > 1000) {
       assert.fail(callHistory.length, 1000,
@@ -17,7 +17,7 @@ describe('Reactive', function () {
     callHistory = [];
   });
 
-  var TenTimesFive = Reactive.create({
+  var TenTimesFive = Chain.create({
     inputs: {
       value: 10
     },
@@ -26,9 +26,9 @@ describe('Reactive', function () {
     }
   });
 
-  var InputTimesFive = Reactive.create({
+  var InputTimesFive = Chain.create({
     inputs: {
-      value: Reactive.REQUIRED
+      value: Chain.REQUIRED
     },
     resolve: function () {
       return this.inputs.value * 5;
@@ -37,23 +37,23 @@ describe('Reactive', function () {
 
   // Very simple output just for testing purposes.
   // You would typically never create an instance this simple.
-  var Ten = Reactive.create({
+  var Ten = Chain.create({
     resolve: function() {
       return 10;
     }
   });
 
-  var ATimesB = Reactive.create({
+  var ATimesB = Chain.create({
     inputs: {
-      a: Reactive.REQUIRED,
-      b: Reactive.REQUIRED
+      a: Chain.REQUIRED,
+      b: Chain.REQUIRED
     },
     resolve: function () {
       return this.inputs.a * this.inputs.b;
     }
   });
 
-  var ATimesBAuto = Reactive.create({
+  var ATimesBAuto = Chain.create({
     inputs: {
       a: 5,
       b: 5
@@ -63,11 +63,11 @@ describe('Reactive', function () {
     }
   });
 
-  var PulseAdder = Reactive.create({
+  var PulseAdder = Chain.create({
     inputs: {
       value: 1,
-      add: Reactive.PULSE,
-      reset: Reactive.PULSE
+      add: Chain.PULSE,
+      reset: Chain.PULSE
     },
     state: {
       total: 0
@@ -90,9 +90,9 @@ describe('Reactive', function () {
     }
   });
 
-  var Pulsar = Reactive.create({
+  var Pulsar = Chain.create({
     outputs: {
-      pulse: Reactive.PULSE
+      pulse: Chain.PULSE
     },
     resolve: function() {
       // TODO: remove this function
@@ -100,7 +100,7 @@ describe('Reactive', function () {
     },
     trigger: function() {
       this.output({
-        pulse: Reactive.PULSE
+        pulse: Chain.PULSE
       });
     }
   });
@@ -145,9 +145,9 @@ describe('Reactive', function () {
     var inputTimesFive = new InputTimesFive();
     var aTimesB = new ATimesB();
     inputTimesFive.setInputValues({value: 2});
-    Reactive.link(inputTimesFive, 'value', aTimesB, 'a');
+    Chain.link(inputTimesFive, 'value', aTimesB, 'a');
     assert(!aTimesB.isRunning());
-    Reactive.link(inputTimesFive, 'value', aTimesB, 'b');
+    Chain.link(inputTimesFive, 'value', aTimesB, 'b');
     assert(aTimesB.isRunning());
     assert.equal(aTimesB.getOutputValue('value'), 100);
     assert.deepEqual(callHistory, [inputTimesFive.id, aTimesB.id]);
@@ -173,21 +173,21 @@ describe('Reactive', function () {
     var b = new ATimesB();
     var c = new ATimesB();
     var d = new Ten();
-    Reactive.link(a, 'value', b, 'a');
-    Reactive.link(a, 'value', c, 'a');
-    Reactive.link(d, 'value', b, 'b');
-    Reactive.link(d, 'value', c, 'b');
+    Chain.link(a, 'value', b, 'a');
+    Chain.link(a, 'value', c, 'a');
+    Chain.link(d, 'value', b, 'b');
+    Chain.link(d, 'value', c, 'b');
 
     assert.deepEqual(callHistory, [a.id, d.id, b.id, c.id]);
 
     // hook the first
     callHistory = [];
-    Reactive.link(b, 'value', c, 'b');
+    Chain.link(b, 'value', c, 'b');
     assert.deepEqual(callHistory, [c.id]);
 
     // hook the second
     callHistory = [];
-    Reactive.link(c, 'value', b, 'b');
+    Chain.link(c, 'value', b, 'b');
     assert.deepEqual(callHistory, []);
     assert(!b.isRunning());
     assert(!c.isRunning());
@@ -214,8 +214,8 @@ describe('Reactive', function () {
     var c = new ATimesBAuto();
 
     callHistory = [];
-    Reactive.link(a, 'value', b, 'a');
-    Reactive.link(a, 'value', c, 'a');
+    Chain.link(a, 'value', b, 'a');
+    Chain.link(a, 'value', c, 'a');
 
     assert.deepEqual(callHistory, [b.id, c.id]);
     assert.equal(b.getOutputValue('value'), 50);
@@ -223,13 +223,13 @@ describe('Reactive', function () {
 
     // hook the first
     callHistory = [];
-    Reactive.link(b, 'value', c, 'b');
+    Chain.link(b, 'value', c, 'b');
     assert.deepEqual(callHistory, [c.id]);
     assert.equal(c.getOutputValue('value'), 500);
 
     // hook the second
     callHistory = [];
-    Reactive.link(c, 'value', b, 'b');
+    Chain.link(c, 'value', b, 'b');
     assert.deepEqual(callHistory, [b.id, c.id]);
     assert.equal(b.getOutputValue('value'), 5000);
     assert.equal(c.getOutputValue('value'), 50000);
@@ -242,7 +242,7 @@ describe('Reactive', function () {
     assert(instance1.isRunning());
     assert(!instance2.isRunning());
 
-    Reactive.link(instance2, 'value', instance1, 'value');
+    Chain.link(instance2, 'value', instance1, 'value');
     assert(!instance1.isRunning());
     assert.deepEqual(callHistory, [instance1.id]);
   });
@@ -254,7 +254,7 @@ describe('Reactive', function () {
     assert(instance1.isRunning());
     assert(!instance2.isRunning());
 
-    Reactive.link(instance2, 'value', instance1, 'value');
+    Chain.link(instance2, 'value', instance1, 'value');
     assert(!instance1.isRunning());
 
     instance1.unlink('value');
@@ -268,8 +268,8 @@ describe('Reactive', function () {
   it('does not re-run an instance with multiple inputs due to one change', function() {
     var aTimesB = new ATimesB();
     var inputTimesFive = new InputTimesFive();
-    Reactive.link(inputTimesFive, 'value', aTimesB, 'a');
-    Reactive.link(inputTimesFive, 'value', aTimesB, 'b');
+    Chain.link(inputTimesFive, 'value', aTimesB, 'a');
+    Chain.link(inputTimesFive, 'value', aTimesB, 'b');
 
     inputTimesFive.setInputValues({value: 10});
     assert(aTimesB.isRunning());
@@ -300,9 +300,9 @@ describe('Reactive', function () {
     var b = new InputTimesFive();
     var c = new ATimesB();
 
-    Reactive.link(a, 'value', c, 'a');
-    Reactive.link(b, 'value', c, 'b');
-    Reactive.link(a, 'value', b, 'value');
+    Chain.link(a, 'value', c, 'a');
+    Chain.link(b, 'value', c, 'b');
+    Chain.link(a, 'value', b, 'value');
 
     a.setInputValues({value: 10});
 
@@ -314,13 +314,13 @@ describe('Reactive', function () {
   it('only runs an instance when inputs have changed', function() {
     var a = new Ten();
     var b = new InputTimesFive();
-    Reactive.link(a, 'value', b, 'value');
+    Chain.link(a, 'value', b, 'value');
     assert.equal(b.getOutputValue('value'), 50);
     assert.deepEqual(callHistory, [a.id, b.id]);
 
     callHistory = [];
     var c = new Ten();
-    Reactive.link(c, 'value', b, 'value');
+    Chain.link(c, 'value', b, 'value');
     assert.equal(b.getOutputValue('value'), 50);
     assert.deepEqual(callHistory, [c.id]);
 
@@ -337,7 +337,7 @@ describe('Reactive', function () {
     assert.deepEqual(callHistory, [a.id, b.id]);
 
     callHistory = [];
-    Reactive.link(a, 'pulse', b, 'add');
+    Chain.link(a, 'pulse', b, 'add');
     assert.deepEqual(callHistory, []);
     assert.equal(b.getOutputValue('total'), 0);
 
@@ -361,7 +361,7 @@ describe('Reactive', function () {
 
     callHistory = [];
     b.unlink('add');
-    Reactive.link(a, 'pulse', b, 'reset');
+    Chain.link(a, 'pulse', b, 'reset');
     assert.equal(b.getOutputValue('total'), 13);
     assert.deepEqual(callHistory, []);
 

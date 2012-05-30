@@ -1,11 +1,11 @@
 'use strict';
 
-var Reactive = {
+var Chain = {
   REQUIRED: '__REQUIRED__',
   PULSE: '__PULSE__'
 };
 
-Reactive.create = function(bag) {
+Chain.create = function(bag) {
   var fn = bag.resolve;
   var inputDefinition = bag.inputs || {};
   var inputDefaults = {};
@@ -21,10 +21,10 @@ Reactive.create = function(bag) {
 
   for (var key in inputDefinition) {
     var value = inputDefinition[key];
-    if (value === Reactive.PULSE) {
+    if (value === Chain.PULSE) {
       inputDefaults[key] = false;
       pulseKeys.push(key);
-    } else if (value === Reactive.REQUIRED) {
+    } else if (value === Chain.REQUIRED) {
       inputDefaults[key] = undefined;
       numRequiredInputs++;
     } else {
@@ -32,7 +32,7 @@ Reactive.create = function(bag) {
     }
   }
 
-  function ReactiveInstance() {
+  function ChainInstance() {
     this.id = totalInstances++;
     // TODO: better object copy
     this.inputs = JSON.parse(JSON.stringify(inputDefaults));
@@ -56,7 +56,7 @@ Reactive.create = function(bag) {
     this._invalidate();
   }
 
-  ReactiveInstance.prototype.output = function(values) {
+  ChainInstance.prototype.output = function(values) {
     if (isOutputValueOnly) {
       values = {value:values};
     }
@@ -67,7 +67,7 @@ Reactive.create = function(bag) {
       var value = values[key];
       // TODO: should have an output definition which makes pulse easier
       // to handle.
-      var is_pulse = value === Reactive.PULSE;
+      var is_pulse = value === Chain.PULSE;
       if (is_pulse) {
         // A pulse distributes a temporary "true" but is always represented as a
         // false value on "outputs".
@@ -89,19 +89,19 @@ Reactive.create = function(bag) {
     }
   };
 
-  ReactiveInstance.prototype.isRunning = function() {
+  ChainInstance.prototype.isRunning = function() {
     return this._numUnlinkedRequiredInputs === 0;
   };
 
-  ReactiveInstance.prototype.isRequiredInput = function(input_key) {
-    return inputDefinition[input_key] === Reactive.REQUIRED;
+  ChainInstance.prototype.isRequiredInput = function(input_key) {
+    return inputDefinition[input_key] === Chain.REQUIRED;
   };
 
-  ReactiveInstance.prototype.getOutputValue = function(output_key) {
+  ChainInstance.prototype.getOutputValue = function(output_key) {
     return this._outputValues[output_key];
   };
 
-  ReactiveInstance.prototype.setInputValues = function(value_map) {
+  ChainInstance.prototype.setInputValues = function(value_map) {
     var value_changed = false;
     for (var key in value_map) {
       var value = value_map[key];
@@ -123,7 +123,7 @@ Reactive.create = function(bag) {
     return this;
   };
 
-  ReactiveInstance.prototype.unlink = function(input_key) {
+  ChainInstance.prototype.unlink = function(input_key) {
     this._unlinkOnly(input_key);
     if (this.inputs[input_key] !== inputDefaults[input_key]) {
       this.inputs[input_key] = inputDefaults[input_key];
@@ -132,7 +132,7 @@ Reactive.create = function(bag) {
   };
 
   // Protected
-  ReactiveInstance.prototype._invalidate = function() {
+  ChainInstance.prototype._invalidate = function() {
     if (this._numUnlinkedRequiredInputs || !this._isValid) {
       return;
     }
@@ -140,7 +140,7 @@ Reactive.create = function(bag) {
     enqueueRun(this);
   };
 
-  ReactiveInstance.prototype._run = function() {
+  ChainInstance.prototype._run = function() {
     if (this._numUnlinkedRequiredInputs > 0) {
       throw new Error('Crazy! This can not run because it has unlinked inputs');
     }
@@ -155,7 +155,7 @@ Reactive.create = function(bag) {
     this._isValid = true;
   };
 
-  ReactiveInstance.prototype._decrementRequiredLinks = function() {
+  ChainInstance.prototype._decrementRequiredLinks = function() {
     if (this._numUnlinkedRequiredInputs === 0) {
       throw new Error('CHAOS! tried to decrement links already at 0.');
     }
@@ -173,7 +173,7 @@ Reactive.create = function(bag) {
     }
   };
 
-  ReactiveInstance.prototype._incrementRequiredLinks = function() {
+  ChainInstance.prototype._incrementRequiredLinks = function() {
     var output_key;
     var links;
     var link_key;
@@ -189,7 +189,7 @@ Reactive.create = function(bag) {
     }
   };
 
-  ReactiveInstance.prototype._unlinkOnly = function(input_key) {
+  ChainInstance.prototype._unlinkOnly = function(input_key) {
     var link_info = this._inputLinks[input_key];
     if (link_info) {
       var from = link_info.instance;
@@ -217,11 +217,11 @@ Reactive.create = function(bag) {
     }
   }
 
-  ReactiveInstance.prototype._dependsOn = function(instance) {
+  ChainInstance.prototype._dependsOn = function(instance) {
     return !!this._dependencies[instance.id];
   }
 
-  ReactiveInstance.prototype._calculateDependencies = function() {
+  ChainInstance.prototype._calculateDependencies = function() {
     this._dependencies = {};
     var input_key, input_instance, output_instance;
     var to_inspect = [this];
@@ -237,19 +237,19 @@ Reactive.create = function(bag) {
     }
   };
 
-  // Remove Reactive API from bag.
+  // Remove Chain API from bag.
   delete bag.resolve;
   delete bag.inputs;
 
-  // Transfer custom API to new reactive class.
+  // Transfer custom API to new Chain class.
   for (var key in bag) {
-    if (ReactiveInstance.prototype[key]) {
+    if (ChainInstance.prototype[key]) {
       throw new Error('Reserved key ' + key);
     }
-    ReactiveInstance.prototype[key] = bag[key];
+    ChainInstance.prototype[key] = bag[key];
   }
 
-  return ReactiveInstance;
+  return ChainInstance;
 };
 
 
@@ -290,8 +290,8 @@ function enqueueRun(instance) {
     var runningInstance;
     while (runQueue.length) {
       runningInstance = runQueue.shift();
-      if (Reactive.beforeRun) {
-        Reactive.beforeRun.call(null, runningInstance);
+      if (Chain.beforeRun) {
+        Chain.beforeRun.call(null, runningInstance);
       }
       runHistory[runningInstance.id] = true;
       runningInstance._run();
@@ -302,7 +302,7 @@ function enqueueRun(instance) {
 
 
 
-Reactive.link = function(from, output_key, to, input_key) {
+Chain.link = function(from, output_key, to, input_key) {
   if (from === to) {
     throw new Error('Cannot link to self.');
   }
@@ -364,4 +364,4 @@ Reactive.link = function(from, output_key, to, input_key) {
   }
 };
 
-module.exports = Reactive;
+module.exports = Chain;

@@ -1,16 +1,16 @@
-var Reactive = require('./Reactive.js');
+var Chain = require('./Chain.js');
 
-var ReactiveValue = function (value) {
-  return new Reactive({
+var ChainValue = function (value) {
+  return new Chain({
     resolve: function (input, output) {
       output({value: value});
     }
   }).newInstance();
 };
 /*
-var ReactiveAdder = new Reactive({
+var ChainAdder = new Chain({
   inputs: {
-    a: Reactive.REQUIRED,
+    a: Chain.REQUIRED,
     b: 1
   },
   resolve: function (input, output) {
@@ -20,22 +20,22 @@ var ReactiveAdder = new Reactive({
   }
 });
 
-var reactiveAdderInstance = ReactiveAdder.newInstance();
-//console.log(reactiveAdderInstance.outputs);
+var ChainAdderInstance = ChainAdder.newInstance();
+//console.log(ChainAdderInstance.outputs);
 
-ReactiveValue(5).linkTo(reactiveAdderInstance, 'value', 'a');
-//console.log(reactiveAdderInstance.outputs);
+ChainValue(5).linkTo(ChainAdderInstance, 'value', 'a');
+//console.log(ChainAdderInstance.outputs);
 
-ReactiveValue(10).linkTo(reactiveAdderInstance, 'value', 'b');
-//console.log(reactiveAdderInstance.outputs);
+ChainValue(10).linkTo(ChainAdderInstance, 'value', 'b');
+//console.log(ChainAdderInstance.outputs);
 */
 
 ///////////////
 
 /*
-var ReactiveIncrementer = new Reactive({
+var ChainIncrementer = new Chain({
   inputs: {
-    value: Reactive.REQUIRED
+    value: Chain.REQUIRED
   },
   resolve: function (input, output) {
     this.value = (this.value || 0) + input.value;
@@ -45,25 +45,25 @@ var ReactiveIncrementer = new Reactive({
   }
 });
 
-var reactiveIncrementerInstance = ReactiveIncrementer.newInstance();
+var ChainIncrementerInstance = ChainIncrementer.newInstance();
 
-reactiveIncrementerInstance.inputs.value = 5;
+ChainIncrementerInstance.inputs.value = 5;
 
-reactiveIncrementerInstance.run();
-console.log(reactiveIncrementerInstance.outputs);
+ChainIncrementerInstance.run();
+console.log(ChainIncrementerInstance.outputs);
 
-reactiveIncrementerInstance.run();
-console.log(reactiveIncrementerInstance.outputs);
+ChainIncrementerInstance.run();
+console.log(ChainIncrementerInstance.outputs);
 
-reactiveIncrementerInstance.inputs.value = 20;
-reactiveIncrementerInstance.run();
-console.log(reactiveIncrementerInstance.outputs);
+ChainIncrementerInstance.inputs.value = 20;
+ChainIncrementerInstance.run();
+console.log(ChainIncrementerInstance.outputs);
 
 
 //////////////
 */
 
-var First = new Reactive({
+var First = new Chain({
   resolve: function (input, output) {
     output({
       beer: 10
@@ -71,9 +71,9 @@ var First = new Reactive({
   }
 });
 
-var Second = new Reactive({
+var Second = new Chain({
   inputs: {
-    nomnom: Reactive.REQUIRED
+    nomnom: Chain.REQUIRED
   },
   resolve: function (input, output) {
     output({
@@ -85,6 +85,6 @@ var Second = new Reactive({
 var firstInst = First.newInstance();
 var secondInst = Second.newInstance();
 var secondInst2 = Second.newInstance();
-Reactive.link(secondInst, 'poopoo', secondInst2, 'nomnom');
-Reactive.link(firstInst, 'beer', secondInst, 'nomnom');
+Chain.link(secondInst, 'poopoo', secondInst2, 'nomnom');
+Chain.link(firstInst, 'beer', secondInst, 'nomnom');
 //console.log(secondInst.outputs);
