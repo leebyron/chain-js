@@ -1,0 +1,7 @@
+Is it possible to use web workers to run most of the instances? If modeled not
+as a queue but as a possible dependency graph (eg, some things cannot be
+dependents but others might but not guaranteed to be) then you know when
+multiple functions can be run in parallel. The tricky piece is that a web worker
+is *always* async, so you might not be able to run the lot in a sync flow and
+would lose the ability to skip multiple executions of the same instance
+repeatedly.
