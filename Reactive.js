@@ -37,7 +37,7 @@ Reactive.create = function(bag) {
     } else {
       this.state = JSON.parse(JSON.stringify(stateDefaults));
     }
-    Object.seal(this.state);
+    Object.seal && Object.seal(this.state);
 
     // protected
     this._isValid = true;
