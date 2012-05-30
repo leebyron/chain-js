@@ -310,7 +310,6 @@ describe('Chain', function () {
     assert.deepEqual(callHistory, [a.id, b.id, c.id]);
   });
 
-  // TODO: only runs dependents who's values have changed
   it('only runs an instance when inputs have changed', function() {
     var a = new Ten();
     var b = new InputTimesFive();
@@ -330,7 +329,6 @@ describe('Chain', function () {
     assert.deepEqual(callHistory, []);
   });
 
-  // Test "pulse"
   it('only executes from a pulse when set to do so', function() {
     var a = new Pulsar();
     var b = new PulseAdder();
