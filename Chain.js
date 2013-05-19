@@ -12,7 +12,8 @@ Chain.create = function(bag) {
   var stateDefaults = bag.state || {};
   var stateIsFn = bag.state instanceof Function;
 
-  var outputDefinition = bag.outputs || {value: 1};
+  // TODO: use real types for output (and input) definition
+  var outputDefinition = bag.outputs || {value: true};
   // TODO: actually check for a scalar? We need a way to type the single output
   var isOutputValueOnly = bag.outputs === undefined;
 
@@ -59,6 +60,7 @@ Chain.create = function(bag) {
     this._invalidate();
   }
 
+  // TODO: perhaps use different functions depending on isOutputValueOnly
   ChainInstance.prototype.output = function(values) {
     if (isOutputValueOnly) {
       values = {value:values};
@@ -100,6 +102,8 @@ Chain.create = function(bag) {
     return outputDefinition[key] !== undefined;
   };
 
+  // TODO: some of these methods do not change functionality per instance,
+  // not useful to create new ones per kind of fn.
   ChainInstance.prototype.isRunning = function() {
     return this._numUnlinkedRequiredInputs === 0;
   };
@@ -255,6 +259,8 @@ Chain.create = function(bag) {
   // Remove Chain API from bag.
   delete bag.resolve;
   delete bag.inputs;
+  delete bag.outputs;
+  delete bag.state;
 
   // Transfer custom API to new Chain class.
   for (var key in bag) {

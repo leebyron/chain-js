@@ -1,5 +1,4 @@
 var Chain = require('../Chain');
-var assert = require('assert');
 
 describe('Chain', function () {
 
@@ -7,9 +6,7 @@ describe('Chain', function () {
   Chain.beforeRun = function(instance) {
     callHistory.push(instance.id);
     if (callHistory.length > 1000) {
-      assert.fail(callHistory.length, 1000,
-        'Too deep call history, might be infinite loop'
-      );
+      throw new Error('Too deep call history, might be infinite loop');
     }
   };
 
@@ -123,38 +120,38 @@ describe('Chain', function () {
 
   it('runs upon construction', function() {
     var instance = new TenTimesFive();
-    assert(instance.isRunning());
-    assert.equal(instance.getOutputValue('value'), 50);
-    assert.deepEqual(callHistory, [instance.id]);
+    expect(instance.isRunning()).toBe(true);
+    expect(instance.getOutputValue('value')).toBe(50);
+    expect(callHistory).toEqual([instance.id]);
   });
 
   it('does not run upon construction when link required', function() {
     var instance = new InputTimesFive();
-    assert(!instance.isRunning());
-    assert.equal(instance.getOutputValue('value'), undefined);
-    assert.deepEqual(callHistory, []);
+    expect(instance.isRunning()).toBe(false);
+    expect(instance.getOutputValue('value')).toBe(undefined);
+    expect(callHistory).toEqual([]);
   });
 
   it('runs when linked', function() {
     var instance = new InputTimesFive();
-    assert(!instance.isRunning());
+    expect(instance.isRunning()).toBe(false);
     instance.setInputValues({value: 10});
-    assert(instance.isRunning());
-    assert.equal(instance.getOutputValue('value'), 50);
-    assert.deepEqual(callHistory, [instance.id]);
+    expect(instance.isRunning()).toBe(true);
+    expect(instance.getOutputValue('value')).toBe(50);
+    expect(callHistory).toEqual([instance.id]);
   });
 
   it('stops running when unlinked', function() {
     var instance = new InputTimesFive();
-    assert(!instance.isRunning());
+    expect(instance.isRunning()).toBe(false);
     instance.setInputValues({value: 10});
-    assert(instance.isRunning());
+    expect(instance.isRunning()).toBe(true);
     instance.unlink('value');
-    assert(!instance.isRunning());
+    expect(instance.isRunning()).toBe(false);
     instance.setInputValues({value: 10});
-    assert(instance.isRunning());
+    expect(instance.isRunning()).toBe(true);
     instance.setInputValues({value: undefined});
-    assert(!instance.isRunning());
+    expect(instance.isRunning()).toBe(false);
   });
 
   it('allows one to many links', function() {
@@ -162,11 +159,11 @@ describe('Chain', function () {
     var aTimesB = new ATimesB();
     inputTimesFive.setInputValues({value: 2});
     Chain.link(inputTimesFive, 'value', aTimesB, 'a');
-    assert(!aTimesB.isRunning());
+    expect(aTimesB.isRunning()).toBe(false);
     Chain.link(inputTimesFive, 'value', aTimesB, 'b');
-    assert(aTimesB.isRunning());
-    assert.equal(aTimesB.getOutputValue('value'), 100);
-    assert.deepEqual(callHistory, [inputTimesFive.id, aTimesB.id]);
+    expect(aTimesB.isRunning()).toBe(true);
+    expect(aTimesB.getOutputValue('value')).toBe(100);
+    expect(callHistory).toEqual([inputTimesFive.id, aTimesB.id]);
   });
 
   /**
@@ -194,19 +191,19 @@ describe('Chain', function () {
     Chain.link(d, 'value', b, 'b');
     Chain.link(d, 'value', c, 'b');
 
-    assert.deepEqual(callHistory, [a.id, d.id, b.id, c.id]);
+    expect(callHistory).toEqual([a.id, d.id, b.id, c.id]);
 
     // hook the first
     callHistory = [];
     Chain.link(b, 'value', c, 'b');
-    assert.deepEqual(callHistory, [c.id]);
+    expect(callHistory).toEqual([c.id]);
 
     // hook the second
     callHistory = [];
     Chain.link(c, 'value', b, 'b');
-    assert.deepEqual(callHistory, []);
-    assert(!b.isRunning());
-    assert(!c.isRunning());
+    expect(callHistory).toEqual([]);
+    expect(b.isRunning()).toBe(false);
+    expect(c.isRunning()).toBe(false);
   });
 
   /**
@@ -233,52 +230,52 @@ describe('Chain', function () {
     Chain.link(a, 'value', b, 'a');
     Chain.link(a, 'value', c, 'a');
 
-    assert.deepEqual(callHistory, [b.id, c.id]);
-    assert.equal(b.getOutputValue('value'), 50);
-    assert.equal(c.getOutputValue('value'), 50);
+    expect(callHistory).toEqual([b.id, c.id]);
+    expect(b.getOutputValue('value')).toBe(50);
+    expect(c.getOutputValue('value')).toBe(50);
 
     // hook the first
     callHistory = [];
     Chain.link(b, 'value', c, 'b');
-    assert.deepEqual(callHistory, [c.id]);
-    assert.equal(c.getOutputValue('value'), 500);
+    expect(callHistory).toEqual([c.id]);
+    expect(c.getOutputValue('value')).toBe(500);
 
     // hook the second
     callHistory = [];
     Chain.link(c, 'value', b, 'b');
-    assert.deepEqual(callHistory, [b.id, c.id]);
-    assert.equal(b.getOutputValue('value'), 5000);
-    assert.equal(c.getOutputValue('value'), 50000);
+    expect(callHistory).toEqual([b.id, c.id]);
+    expect(b.getOutputValue('value')).toBe(5000);
+    expect(c.getOutputValue('value')).toBe(50000);
   });
 
   it('stops running when a non-running instance is linked', function() {
     var instance1 = new TenTimesFive();
     var instance2 = new InputTimesFive();
 
-    assert(instance1.isRunning());
-    assert(!instance2.isRunning());
+    expect(instance1.isRunning()).toBe(true);
+    expect(instance2.isRunning()).toBe(false);
 
     Chain.link(instance2, 'value', instance1, 'value');
-    assert(!instance1.isRunning());
-    assert.deepEqual(callHistory, [instance1.id]);
+    expect(instance1.isRunning()).toBe(false);
+    expect(callHistory).toEqual([instance1.id]);
   });
 
   it('begins running after a non-running instance is unlinked', function() {
     var instance1 = new TenTimesFive();
     var instance2 = new InputTimesFive();
 
-    assert(instance1.isRunning());
-    assert(!instance2.isRunning());
+    expect(instance1.isRunning()).toBe(true);
+    expect(instance2.isRunning()).toBe(false);
 
     Chain.link(instance2, 'value', instance1, 'value');
-    assert(!instance1.isRunning());
+    expect(instance1.isRunning()).toBe(false);
 
     instance1.unlink('value');
-    assert(instance1.isRunning());
+    expect(instance1.isRunning()).toBe(true);
 
     // is only called once since when moved back to "running" it doesn't
     // actually need to be re-run since it's value has not changed.
-    assert.deepEqual(callHistory, [instance1.id]);
+    expect(callHistory).toEqual([instance1.id]);
   });
 
   it('does not re-run an instance with multiple inputs due to one change', function() {
@@ -288,17 +285,17 @@ describe('Chain', function () {
     Chain.link(inputTimesFive, 'value', aTimesB, 'b');
 
     inputTimesFive.setInputValues({value: 10});
-    assert(aTimesB.isRunning());
-    assert.equal(aTimesB.getOutputValue('value'), 2500);
-    assert.deepEqual(callHistory, [inputTimesFive.id, aTimesB.id]);
+    expect(aTimesB.isRunning()).toBe(true);
+    expect(aTimesB.getOutputValue('value')).toBe(2500);
+    expect(callHistory).toEqual([inputTimesFive.id, aTimesB.id]);
 
     // reset call history
     callHistory = [];
 
     inputTimesFive.setInputValues({value: 11});
-    assert(aTimesB.isRunning());
-    assert.equal(aTimesB.getOutputValue('value'), 3025);
-    assert.deepEqual(callHistory, [inputTimesFive.id, aTimesB.id]);
+    expect(aTimesB.isRunning()).toBe(true);
+    expect(aTimesB.getOutputValue('value')).toBe(3025);
+    expect(callHistory).toEqual([inputTimesFive.id, aTimesB.id]);
   });
 
   /**
@@ -322,71 +319,71 @@ describe('Chain', function () {
 
     a.setInputValues({value: 10});
 
-    assert.equal(c.getOutputValue('value'), 12500);
-    assert.deepEqual(callHistory, [a.id, b.id, c.id]);
+    expect(c.getOutputValue('value')).toBe(12500);
+    expect(callHistory).toEqual([a.id, b.id, c.id]);
   });
 
   it('only runs an instance when inputs have changed', function() {
     var a = new Ten();
     var b = new InputTimesFive();
     Chain.link(a, 'value', b, 'value');
-    assert.equal(b.getOutputValue('value'), 50);
-    assert.deepEqual(callHistory, [a.id, b.id]);
+    expect(b.getOutputValue('value')).toBe(50);
+    expect(callHistory).toEqual([a.id, b.id]);
 
     callHistory = [];
     var c = new Ten();
     Chain.link(c, 'value', b, 'value');
-    assert.equal(b.getOutputValue('value'), 50);
-    assert.deepEqual(callHistory, [c.id]);
+    expect(b.getOutputValue('value')).toBe(50);
+    expect(callHistory).toEqual([c.id]);
 
     callHistory = [];
     b.setInputValues({value: 10});
-    assert.equal(b.getOutputValue('value'), 50);
-    assert.deepEqual(callHistory, []);
+    expect(b.getOutputValue('value')).toBe(50);
+    expect(callHistory).toEqual([]);
   });
 
   it('only executes from a pulse when set to do so', function() {
     var a = new Pulsar();
     var b = new PulseAdder();
-    assert.deepEqual(callHistory, [a.id, b.id]);
+    expect(callHistory).toEqual([a.id, b.id]);
 
     callHistory = [];
     Chain.link(a, 'pulse', b, 'add');
-    assert.deepEqual(callHistory, []);
-    assert.equal(b.getOutputValue('total'), 0);
+    expect(callHistory).toEqual([]);
+    expect(b.getOutputValue('total')).toBe(0);
 
     a.trigger();
-    assert.equal(b.getOutputValue('total'), 1);
+    expect(b.getOutputValue('total')).toBe(1);
     a.trigger();
-    assert.equal(b.getOutputValue('total'), 2);
+    expect(b.getOutputValue('total')).toBe(2);
     a.trigger();
-    assert.equal(b.getOutputValue('total'), 3);
-    assert.deepEqual(callHistory, [b.id, b.id, b.id]);
+    expect(b.getOutputValue('total')).toBe(3);
+    expect(callHistory).toEqual([b.id, b.id, b.id]);
 
     callHistory = [];
     b.setInputValues({value: 10});
-    assert.equal(b.getOutputValue('total'), 3);
-    assert.deepEqual(callHistory, [b.id]);
+    expect(b.getOutputValue('total')).toBe(3);
+    expect(callHistory).toEqual([b.id]);
 
     callHistory = [];
     a.trigger();
-    assert.equal(b.getOutputValue('total'), 13);
-    assert.deepEqual(callHistory, [b.id]);
+    expect(b.getOutputValue('total')).toBe(13);
+    expect(callHistory).toEqual([b.id]);
 
     callHistory = [];
     b.unlink('add');
     Chain.link(a, 'pulse', b, 'reset');
-    assert.equal(b.getOutputValue('total'), 13);
-    assert.deepEqual(callHistory, []);
+    expect(b.getOutputValue('total')).toBe(13);
+    expect(callHistory).toEqual([]);
 
     a.trigger();
-    assert.equal(b.getOutputValue('total'), 0);
-    assert.deepEqual(callHistory, [b.id]);
+    expect(b.getOutputValue('total')).toBe(0);
+    expect(callHistory).toEqual([b.id]);
   });
 
   /**
    * Test infinite loop graph cycle.
-   * one calls two on nextFrame which then calls one on nextFrame.
+   * A calls B on nextFrame which then calls A on nextFrame. Lather, rinse.
    *
    *      +---+
    *  +-->| A |-+
@@ -409,14 +406,14 @@ describe('Chain', function () {
       if (++runs === 3) {
         // stop recursion
         b.unlink('pulse');
-        assert.deepEqual(callHistory, [a.id, b.id, a.id, b.id, a.id, b.id]);
+        expect(callHistory).toEqual([a.id, b.id, a.id, b.id, a.id, b.id]);
         done();
       }
     };
 
     callHistory = [];
     a.setInputValues({pulse: true});
-    assert.deepEqual(callHistory, [a.id]);
+    expect(callHistory).toEqual([a.id]);
   });
 
 });
